@@ -6,14 +6,66 @@ import { v2 as cloudinary } from "cloudinary";
 import fs from 'fs';
 import pdf from 'pdf-parse/lib/pdf-parse.js';
 
-const AI = new OpenAI({
-    apiKey: process.env.GEMINI_API_KEY,
-    baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/"
+const openai = new OpenAI({
+  apiKey: process.env.GROQ_API_KEY,
+  baseURL: "https://api.groq.com/openai/v1",
 });
+
+// export const generateArticle = async (req, res) => {
+//     console.log('here')
+//     try {
+//         const { userId } = req.auth(); 
+//         const { prompt, length } = req.body;
+//         const maxTokens = parseInt(length) || 1000;
+//         console.log('prompt',userId)
+//         const plan = req.plan;
+//         const free_usage = req.free_usage;
+
+//         if (plan !== 'premium' && free_usage >= 10) {
+//             return res.json({ success: false, message: "Limit reached. Upgrade to continue." });
+//         }
+
+//         const response = await AI.chat.completions.create({
+//             model: "gemini-2.0-flash",
+//             messages: [{ role: "user", content: prompt }],
+//             temperature: 0.7,
+//             max_tokens: maxTokens,
+//         });
+
+//         const content = response.choices[0].message.content;
+
+//         await sql`INSERT INTO creations (user_id, prompt, content, type) 
+//         VALUES (${userId}, ${prompt}, ${content}, 'article')`;
+
+//         if (plan !== 'premium') {
+//             await clerkClient.users.updateUserMetadata(userId, {
+//                 privateMetadata: {
+//                     free_usage: free_usage + 1
+//                 }
+//             });
+//         }
+
+//         res.json({ success: true, content });
+
+//     } catch (error) {
+//         // Log the detailed error from the OpenAI/Gemini SDK
+//         if (error.response) {
+//             console.error("API Error Response:", error.response.status, error.response.data);
+//         } else {
+//             console.error("SDK Error:", error.message);
+//         }
+        
+//         res.status(error.status || 500).json({ 
+//             success: false, 
+//             message: error.message 
+//         });
+//     }
+
+// };
 
 export const generateArticle = async (req, res) => {
     try {
-        const { userId } = req.auth(); // ✅ FIXED
+        const { userId } = req.auth();
         const { prompt, length } = req.body;
         const plan = req.plan;
         const free_usage = req.free_usage;
@@ -22,11 +74,15 @@ export const generateArticle = async (req, res) => {
             return res.json({ success: false, message: "Limit reached. Upgrade to continue." });
         }
 
-        const response = await AI.chat.completions.create({
-            model: "gemini-2.0-flash",
-            messages: [{ role: "user", content: prompt }],
+        const maxTokens = parseInt(length) || 1000;
+
+        const response = await openai.chat.completions.create({
+            model: "llama-3.3-70b-versatile",
+            messages: [
+                { role: "user", content: prompt }
+            ],
             temperature: 0.7,
-            max_tokens: length,
+            max_tokens: maxTokens,
         });
 
         const content = response.choices[0].message.content;
@@ -45,14 +101,58 @@ export const generateArticle = async (req, res) => {
         res.json({ success: true, content });
 
     } catch (error) {
-        console.log(error.message);
-        res.json({ success: false, message: error.message });
+        console.error("OpenAI Error:", error.message);
+        res.status(500).json({ 
+            success: false, 
+            message: error.message 
+        });
     }
 };
 
+
+// export const generateBlogTitle = async (req, res) => {
+//     try {
+//         const { userId } = req.auth();
+//         const { prompt } = req.body;
+//         console.log("",prompt )
+//         const plan = req.plan;
+//         const free_usage = req.free_usage;
+
+//         if (plan !== 'premium' && free_usage >= 10) {
+//             return res.json({ success: false, message: "Limit reached. Upgrade to continue." });
+//         }
+
+//         const response = await AI.chat.completions.create({
+//             model: "gemini-2.0-flash",
+//             messages: [{ role: "user", content: prompt }],
+//             temperature: 0.7,
+//             max_tokens: 100,
+//         });
+
+//         const content = response.choices[0].message.content;
+
+//         await sql`INSERT INTO creations (user_id, prompt, content, type) 
+//         VALUES (${userId}, ${prompt}, ${content}, 'blog-title')`;
+
+//         if (plan !== 'premium') {
+//             await clerkClient.users.updateUserMetadata(userId, {
+//                 privateMetadata: {
+//                     free_usage: free_usage + 1
+//                 }
+//             });
+//         }
+
+//         res.json({ success: true, content });
+
+//     } catch (error) {
+//         console.log(error.message);
+//         res.json({ success: false, message: error.message });
+//     }
+// };
+
 export const generateBlogTitle = async (req, res) => {
     try {
-        const { userId } = req.auth(); // ✅ FIXED
+        const { userId } = req.auth();
         const { prompt } = req.body;
         const plan = req.plan;
         const free_usage = req.free_usage;
@@ -61,11 +161,20 @@ export const generateBlogTitle = async (req, res) => {
             return res.json({ success: false, message: "Limit reached. Upgrade to continue." });
         }
 
-        const response = await AI.chat.completions.create({
-            model: "gemini-2.0-flash",
-            messages: [{ role: "user", content: prompt }],
+        const response = await openai.chat.completions.create({
+            model: "llama-3.3-70b-versatile", // Updated Groq model
+            messages: [
+                {
+                    role: "system",
+                    content: "Generate a short, catchy, SEO-friendly blog title."
+                },
+                {
+                    role: "user",
+                    content: prompt
+                }
+            ],
             temperature: 0.7,
-            max_tokens: 100,
+            max_tokens: 60,
         });
 
         const content = response.choices[0].message.content;
@@ -84,14 +193,18 @@ export const generateBlogTitle = async (req, res) => {
         res.json({ success: true, content });
 
     } catch (error) {
-        console.log(error.message);
-        res.json({ success: false, message: error.message });
+        console.error("Groq Error:", error.message);
+        res.status(500).json({ 
+            success: false, 
+            message: error.message 
+        });
     }
 };
 
 export const generateImage = async (req, res) => {
     try {
-        const { userId } = req.auth(); // ✅ FIXED
+        
+        const { userId } = req.auth(); 
         const { prompt, publish } = req.body;
         const plan = req.plan;
 
@@ -122,7 +235,7 @@ export const generateImage = async (req, res) => {
 
 export const removeImageBackground = async (req, res) => {
     try {
-        const { userId } = req.auth(); // ✅ FIXED
+        const { userId } = req.auth(); 
         const image = req.file;
         const plan = req.plan;
 
@@ -152,7 +265,7 @@ export const removeImageBackground = async (req, res) => {
 
 export const removeImageObject = async (req, res) => {
     try {
-        const { userId } = req.auth(); // ✅ FIXED
+        const { userId } = req.auth(); 
         const { object } = req.body;
         const image = req.file;
         const plan = req.plan;
@@ -179,30 +292,100 @@ export const removeImageObject = async (req, res) => {
     }
 };
 
+// export const resumeReview = async (req, res) => {
+//     try {
+//         const { userId } = req.auth(); 
+//         const resume = req.file;
+//         const plan = req.plan;
+
+//         if (plan !== 'premium') {
+//             return res.json({ success: false, message: "This feature is only available for premium subscriptions" });
+//         }
+
+//         if (resume.size > 5 * 1024 * 1024) {
+//             return res.json({ success: false, message: "Resume file size exceeds allowed size (5MB)." });
+//         }
+
+//         const dataBuffer = fs.readFileSync(resume.path);
+//         const pdfData = await pdf(dataBuffer);
+
+//         const prompt = `Review the following resume and provide constructive feedback on its strengths, weaknesses, and areas for improvement. Resume Content:\n\n${pdfData.text}`;
+
+//         const response = await AI.chat.completions.create({
+//             model: "gemini-2.0-flash",
+//             messages: [{ role: "user", content: prompt }],
+//             temperature: 0.7,
+//             max_tokens: 1000,
+//         });
+
+//         const content = response.choices[0].message.content;
+
+//         await sql`INSERT INTO creations (user_id, prompt, content, type) 
+//         VALUES (${userId}, 'Review the uploaded resume', ${content}, 'resume-review')`;
+
+//         res.json({ success: true, content });
+
+//     } catch (error) {
+//         console.log(error.message);
+//         res.json({ success: false, message: error.message });
+//     }
+// };
 export const resumeReview = async (req, res) => {
     try {
-        const { userId } = req.auth(); // ✅ FIXED
+        const { userId } = req.auth(); 
         const resume = req.file;
         const plan = req.plan;
 
         if (plan !== 'premium') {
-            return res.json({ success: false, message: "This feature is only available for premium subscriptions" });
+            return res.json({ 
+                success: false, 
+                message: "This feature is only available for premium subscriptions" 
+            });
+        }
+
+        if (!resume) {
+            return res.json({ 
+                success: false, 
+                message: "No resume file uploaded." 
+            });
         }
 
         if (resume.size > 5 * 1024 * 1024) {
-            return res.json({ success: false, message: "Resume file size exceeds allowed size (5MB)." });
+            return res.json({ 
+                success: false, 
+                message: "Resume file size exceeds allowed size (5MB)." 
+            });
         }
 
         const dataBuffer = fs.readFileSync(resume.path);
         const pdfData = await pdf(dataBuffer);
 
-        const prompt = `Review the following resume and provide constructive feedback on its strengths, weaknesses, and areas for improvement. Resume Content:\n\n${pdfData.text}`;
+        const prompt = `
+        Review the following resume and provide:
+        - Strengths
+        - Weaknesses
+        - Specific improvement suggestions
+        - Formatting feedback
+        - ATS optimization advice
 
-        const response = await AI.chat.completions.create({
-            model: "gemini-2.0-flash",
-            messages: [{ role: "user", content: prompt }],
+        Resume Content:
+        ${pdfData.text}
+        `;
+
+        const response = await openai.chat.completions.create({
+            model: "llama-3.3-70b-versatile",
+            messages: [
+                {
+                    role: "system",
+                    content: "You are a professional career coach and resume expert."
+                },
+                {
+                    role: "user",
+                    content: prompt
+                }
+            ],
             temperature: 0.7,
-            max_tokens: 1000,
+            max_tokens: 1200,
         });
 
         const content = response.choices[0].message.content;
@@ -213,7 +396,10 @@ export const resumeReview = async (req, res) => {
         res.json({ success: true, content });
 
     } catch (error) {
-        console.log(error.message);
-        res.json({ success: false, message: error.message });
+        console.error("Groq Resume Error:", error.message);
+        res.status(500).json({ 
+            success: false, 
+            message: error.message 
+        });
     }
 };

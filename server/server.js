@@ -13,11 +13,11 @@ await connectCloudinary()
 
 app.use(cors());
 app.use(express.json());
-app.use(clerkMiddleware()) // all the request wil be pased using this clerk middle ware
+app.use(clerkMiddleware()) 
 app.get('/',(req,res)=>{
    res.send('Server is Live')
 })
-app.use(requireAuth()) // after this all the route will be protected
+app.use(requireAuth()) 
 
 app.use('/api/ai',aiRouter)
 app.use('/api/user',userRouter)
